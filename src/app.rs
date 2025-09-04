@@ -1,4 +1,4 @@
-use crate::tree::{self, Tree, TreeIndex};
+use crate::tree::{self, Tree, Index};
 use egui::{Frame, Ui};
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -6,14 +6,14 @@ use egui::{Frame, Ui};
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct App {
     root: Tree,
-    focus: TreeIndex,
+    focus: Index,
 }
 
 impl Default for App {
     fn default() -> Self {
         Self {
             root: tree::big_tree(2, 3),
-            focus: TreeIndex::default(),
+            focus: Index::default(),
         }
     }
 }
@@ -38,7 +38,7 @@ impl App {
     }
 
     fn render_tree(&mut self, ui: &mut Ui) {
-        fn go(app: &mut App, ui: &mut Ui, outside_focus: bool, tree: &Tree, index: TreeIndex) {
+        fn go(app: &mut App, ui: &mut Ui, outside_focus: bool, tree: &Tree, index: Index) {
             Frame::new()
                 .inner_margin(12)
                 .outer_margin(12)
@@ -53,7 +53,7 @@ impl App {
                 .stroke(if outside_focus && index.len() == app.focus.len() {
                     egui::Stroke::new(2.0, egui::Color32::WHITE)
                 } else {
-                    egui::Stroke::new(0.5, egui::Color32::DARK_GRAY)
+                    egui::Stroke::new(2.0, egui::Color32::DARK_GRAY)
                 })
                 .show(ui, |ui| {
                     ui.label(egui::RichText::new(tree.label.clone()).color(egui::Color32::WHITE));
@@ -72,7 +72,7 @@ impl App {
                 });
         }
 
-        go(self, ui, true, &self.root.clone(), TreeIndex::default());
+        go(self, ui, true, &self.root.clone(), Index::default());
     }
 }
 
@@ -84,6 +84,22 @@ impl eframe::App for App {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let focus_old = self.focus.clone();
+        if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
+            self.focus.move_up();
+        } else if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
+            self.focus.move_down(0);
+        } else if ctx.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
+            self.focus.move_left_sibling();
+        } else if ctx.input(|i| i.key_pressed(egui::Key::ArrowRight)) {
+            self.focus.move_right_sibling();
+        }
+
+        // if move went out of bounds, then reset it
+        if !self.root.index_in_bounds(&self.focus) {
+            self.focus = focus_old;
+        }
+
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 // NOTE: no File->Quit on web pages!
@@ -103,6 +119,8 @@ impl eframe::App for App {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("tree-editor-with-egui");
+
+            ui.label(format!("focus: {:?}", self.focus));
 
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                 self.render_tree(ui);

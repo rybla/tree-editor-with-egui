@@ -1,18 +1,53 @@
-#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
-pub struct TreeIndex(pub Vec<usize>);
+pub type TreeStep = usize;
 
-impl TreeIndex {
+#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
+pub struct Index(pub Vec<TreeStep>);
+
+impl Index {
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    pub fn push(&mut self, i: usize) {
+    pub fn push(&mut self, i: TreeStep) {
         self.0.push(i);
     }
 
-    pub fn get(&self, i: usize) -> Option<usize> {
+    pub fn get(&self, i: usize) -> Option<TreeStep> {
         if i < self.len() {
             Some(self.0[i])
+        } else {
+            None
+        }
+    }
+
+    pub fn iter(&self) -> std::slice::Iter<'_, usize> {
+        self.0.iter()
+    }
+
+    pub fn move_up(&mut self) {
+        self.0.pop();
+    }
+
+    pub fn move_down(&mut self, i: TreeStep) {
+        self.0.push(i);
+    }
+
+    pub fn move_left_sibling(&mut self) {
+        if let Some(i) = self.0.pop() {
+            self.0.push(if i > 0 { i - 1 } else { i });
+        }
+    }
+
+    pub fn move_right_sibling(&mut self) {
+        if let Some(parent) = self.0.pop() {
+            self.0.push(parent + 1);
+        }
+    }
+
+    pub fn shift(&mut self) -> Option<TreeStep> {
+        if let Some(i) = self.get(0) {
+            self.0.remove(0);
+            Some(i)
         } else {
             None
         }
@@ -26,7 +61,7 @@ pub struct Tree {
 }
 
 impl Tree {
-    pub fn at_path(&self, path: &TreeIndex, i: Option<usize>) -> &Tree {
+    pub fn at_path(&self, path: &Index, i: Option<usize>) -> &Tree {
         match i {
             None => todo!(),
             Some(i) => {
@@ -37,6 +72,30 @@ impl Tree {
                 }
             }
         }
+    }
+
+    pub fn index_in_bounds(&self, index: &Index) -> bool {
+        let mut tree = self;
+        for i in index.iter() {
+            if !(*i < tree.kids.len()) {
+                return false;
+            }
+            tree = &tree.kids[*i]
+        }
+        return true;
+    }
+
+    pub fn insert_at(&mut self, index: &Index, path: Path) {
+        // let mut parent: Option<&mut Tree> = None;
+        // let mut kid = self;
+        // for i in index.iter() {
+        //     parent = Some(&mut kid);
+        //     kid = &mut kid.kids[*i];
+        // }
+        // if let Some(parent) = parent {
+        //     todo!()
+        // }
+        todo!()
     }
 }
 
@@ -64,4 +123,13 @@ pub fn big_tree(width: u32, height: u32) -> Tree {
 
     // Start the recursion from depth 0
     go_recursive(0, width, height)
+}
+
+pub type Path = Vec<Tooth>;
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct Tooth {
+    label: String,
+    kids_left: Vec<Tree>,
+    kids_right: Vec<Tree>,
 }
