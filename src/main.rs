@@ -18,9 +18,9 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
     eframe::run_native(
-        "eframe template",
+        "tree-editor-with-egui",
         native_options,
-        Box::new(|cc| Ok(Box::new(tree_editor_with_egui::TemplateApp::new(cc)))),
+        Box::new(|cc| Ok(Box::new(tree_editor_with_egui::App::new(cc)))),
     )
 }
 
