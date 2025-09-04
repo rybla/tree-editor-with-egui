@@ -85,18 +85,21 @@ impl Tree {
         return true;
     }
 
-    pub fn insert_at(&mut self, index: &Index, path: Path) {
-        // let mut parent: Option<&mut Tree> = None;
-        // let mut kid = self;
-        // for i in index.iter() {
-        //     parent = Some(&mut kid);
-        //     kid = &mut kid.kids[*i];
-        // }
-        // if let Some(parent) = parent {
-        //     todo!()
-        // }
-        todo!()
-    }
+    // pub fn insert_at(&mut self, index: &Index, path: Path) {
+    //     let mut tree = self.clone();
+    //     let mut path_outer: Path = Path::new();
+    //     for i in path.iter() {
+    //         let (kids_left, kids_middle_and_right) = tree.kids.split_at(i);
+    //         // let kids_middle_and_right = kids_middle_and_right.to_vec();
+    //         let kid_middle = kids_middle_and_right[0];
+    //         let kids_right = &kids_middle_and_right[1..kids_middle_and_right.len()];
+    //         path_outer.push(Tooth {
+    //             label: tree.label.clone(),
+    //             kids_left: todo!(),
+    //             kids_right: todo!(),
+    //         });
+    //     }
+    // }
 }
 
 pub fn big_tree(width: u32, height: u32) -> Tree {
