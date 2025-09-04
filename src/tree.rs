@@ -251,4 +251,23 @@ mod tests {
             )
         )
     }
+
+    #[test]
+    fn tree_wrap_with_path_at_test1() {
+        let tree = Tree::mk("B", &[]);
+
+        let mut tree_new = tree.clone();
+        tree_new.wrap_with_path_at_index(
+            &Index(vec![]),
+            vec![Tooth::mk("A", &[Tree::mk("L", &[])], &[Tree::mk("R", &[])])],
+        );
+
+        assert_eq!(
+            tree_new,
+            Tree::mk(
+                "A",
+                &[Tree::mk("L", &[]), Tree::mk("B", &[]), Tree::mk("R", &[])]
+            )
+        )
+    }
 }
