@@ -110,7 +110,7 @@ impl Tree {
             }
         }
 
-        go(self, index, path, 0);
+        *self = go(self, index, path, 0);
     }
 
     pub fn wrap_with_path(self, path: Path) -> Tree {
@@ -267,6 +267,28 @@ mod tests {
             Tree::mk(
                 "A",
                 &[Tree::mk("L", &[]), Tree::mk("B", &[]), Tree::mk("R", &[])]
+            )
+        )
+    }
+
+    #[test]
+    fn tree_wrap_with_path_at_test2() {
+        let tree = Tree::mk("B1", &[Tree::mk("B2", &[])]);
+
+        let mut tree_new = tree.clone();
+        tree_new.wrap_with_path_at_index(
+            &Index(vec![0]),
+            vec![Tooth::mk("A", &[Tree::mk("L", &[])], &[Tree::mk("R", &[])])],
+        );
+
+        assert_eq!(
+            tree_new,
+            Tree::mk(
+                "B1",
+                &[Tree::mk(
+                    "A",
+                    &[Tree::mk("L", &[]), Tree::mk("B2", &[]), Tree::mk("R", &[])]
+                )]
             )
         )
     }
