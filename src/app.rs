@@ -1,4 +1,4 @@
-use crate::tree::{self, Tree, Index};
+use crate::tree::{self, Index, Tree};
 use egui::{Frame, Ui};
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -44,16 +44,16 @@ impl App {
                 .outer_margin(12)
                 .corner_radius(12)
                 .shadow(egui::Shadow {
-                    offset: [8, 12],
+                    offset: [4, 4],
                     blur: 12,
                     spread: 0,
                     color: egui::Color32::from_black_alpha(180),
                 })
-                .fill(egui::Color32::BLACK)
+                .fill(egui::Color32::BLUE)
                 .stroke(if outside_focus && index.len() == app.focus.len() {
-                    egui::Stroke::new(2.0, egui::Color32::WHITE)
+                    egui::Stroke::new(2.0, egui::Color32::RED)
                 } else {
-                    egui::Stroke::new(2.0, egui::Color32::DARK_GRAY)
+                    egui::Stroke::new(2.0, egui::Color32::BLACK)
                 })
                 .show(ui, |ui| {
                     ui.label(egui::RichText::new(tree.label.clone()).color(egui::Color32::WHITE));

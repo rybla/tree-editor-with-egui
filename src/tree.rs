@@ -100,19 +100,16 @@ impl Tree {
 }
 
 pub fn big_tree(width: u32, height: u32) -> Tree {
-    // Define a nested function for recursive tree generation.
-    // Nested functions in Rust do not capture outer scope variables implicitly
-    // like closures do, so `width` and `height` must be passed as arguments.
-    fn go_recursive(current_depth: u32, width: u32, height: u32) -> Tree {
+    fn go(current_depth: u32, width: u32, height: u32) -> Tree {
         if current_depth == height {
             Tree {
-                label: format!("N{current_depth}"),
+                label: format!("D{current_depth}"),
                 kids: vec![],
             }
         } else {
             let mut kids = Vec::with_capacity(width as usize);
             for _ in 0..width {
-                kids.push(go_recursive(current_depth + 1, width, height));
+                kids.push(go(current_depth + 1, width, height));
             }
             Tree {
                 label: format!("N{current_depth}"),
@@ -122,7 +119,7 @@ pub fn big_tree(width: u32, height: u32) -> Tree {
     }
 
     // Start the recursion from depth 0
-    go_recursive(0, width, height)
+    go(0, width, height)
 }
 
 pub type Path = Vec<Tooth>;
