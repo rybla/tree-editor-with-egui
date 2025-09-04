@@ -1,20 +1,19 @@
+use crate::tree::{self, Tree, TreeIndex};
+use egui::{Frame, Ui};
+
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct App {
-    // Example stuff:
-    label: String,
-
-    #[serde(skip)] // This how you opt-out of serialization of a field
-    value: f32,
+    root: Tree,
+    focus: TreeIndex,
 }
 
 impl Default for App {
     fn default() -> Self {
         Self {
-            // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
+            root: tree::big_tree(2, 3),
+            focus: TreeIndex::default(),
         }
     }
 }
@@ -27,11 +26,53 @@ impl App {
 
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
-        if let Some(storage) = cc.storage {
-            eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default()
+        if false {
+            if let Some(storage) = cc.storage {
+                eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default()
+            } else {
+                Default::default()
+            }
         } else {
             Default::default()
         }
+    }
+
+    fn render_tree(&mut self, ui: &mut Ui) {
+        fn go(app: &mut App, ui: &mut Ui, outside_focus: bool, tree: &Tree, index: TreeIndex) {
+            Frame::new()
+                .inner_margin(12)
+                .outer_margin(12)
+                .corner_radius(12)
+                .shadow(egui::Shadow {
+                    offset: [8, 12],
+                    blur: 12,
+                    spread: 0,
+                    color: egui::Color32::from_black_alpha(180),
+                })
+                .fill(egui::Color32::BLACK)
+                .stroke(if outside_focus && index.len() == app.focus.len() {
+                    egui::Stroke::new(2.0, egui::Color32::WHITE)
+                } else {
+                    egui::Stroke::new(0.5, egui::Color32::DARK_GRAY)
+                })
+                .show(ui, |ui| {
+                    ui.label(egui::RichText::new(tree.label.clone()).color(egui::Color32::WHITE));
+                    for (i, kid) in tree.kids.iter().enumerate() {
+                        let mut index_kid = index.clone();
+                        index_kid.push(i);
+
+                        let outside_focus_kid = outside_focus
+                            && match app.focus.get(index_kid.len() - 1) {
+                                None => false,
+                                Some(j) => i == j,
+                            };
+
+                        go(app, ui, outside_focus_kid, kid, index_kid);
+                    }
+                });
+        }
+
+        go(self, ui, true, &self.root.clone(), TreeIndex::default());
     }
 }
 
@@ -43,12 +84,7 @@ impl eframe::App for App {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
-
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
-
             egui::MenuBar::new().ui(ui, |ui| {
                 // NOTE: no File->Quit on web pages!
                 let is_web = cfg!(target_arch = "wasm32");
@@ -68,26 +104,9 @@ impl eframe::App for App {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("tree-editor-with-egui");
 
-            // TODO: content
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                powered_by_egui_and_eframe(ui);
-                egui::warn_if_debug_build(ui);
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                self.render_tree(ui);
             });
         });
     }
-}
-
-fn powered_by_egui_and_eframe(ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 0.0;
-        ui.label("Powered by ");
-        ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-        ui.label(" and ");
-        ui.hyperlink_to(
-            "eframe",
-            "https://github.com/emilk/egui/tree/master/crates/eframe",
-        );
-        ui.label(".");
-    });
 }
