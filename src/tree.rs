@@ -54,24 +54,30 @@ impl Index {
     }
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, PartialEq)]
 pub struct Tree {
     pub label: String,
     pub kids: Vec<Tree>,
 }
 
 impl Tree {
-    pub fn at_path(&self, path: &Index, i: Option<usize>) -> &Tree {
-        match i {
-            None => todo!(),
-            Some(i) => {
-                if i == path.len() {
-                    self
-                } else {
-                    self.kids[i].at_path(path, Some(i + 1))
-                }
+    pub fn mk(label: &str, kids: &[Tree]) -> Tree {
+        Tree {
+            label: label.to_string(),
+            kids: kids.to_vec(),
+        }
+    }
+
+    pub fn at_index(&self, index: &Index) -> &Tree {
+        fn go<'a>(tree: &'a Tree, index: &Index, i: usize) -> &'a Tree {
+            if i == index.len() {
+                tree
+            } else {
+                go(&tree.kids[i], index, i + 1)
             }
         }
+
+        go(self, index, 0)
     }
 
     pub fn index_in_bounds(&self, index: &Index) -> bool {
@@ -85,21 +91,42 @@ impl Tree {
         return true;
     }
 
-    // pub fn insert_at(&mut self, index: &Index, path: Path) {
-    //     let mut tree = self.clone();
-    //     let mut path_outer: Path = Path::new();
-    //     for i in path.iter() {
-    //         let (kids_left, kids_middle_and_right) = tree.kids.split_at(i);
-    //         // let kids_middle_and_right = kids_middle_and_right.to_vec();
-    //         let kid_middle = kids_middle_and_right[0];
-    //         let kids_right = &kids_middle_and_right[1..kids_middle_and_right.len()];
-    //         path_outer.push(Tooth {
-    //             label: tree.label.clone(),
-    //             kids_left: todo!(),
-    //             kids_right: todo!(),
-    //         });
-    //     }
-    // }
+    pub fn wrap_with_path_at_index(&mut self, index: &Index, path: Path) {
+        fn go(tree: &Tree, index: &Index, path: Path, i: usize) -> Tree {
+            if let Some(step) = index.get(i) {
+                let kids_left = &tree.kids[..step];
+                let kids_right = if step + 1 < tree.kids.len() {
+                    &tree.kids[step + 1..]
+                } else {
+                    &[]
+                };
+                let kid_middle = go(&tree.kids[step], index, path, i + 1);
+                Tree {
+                    label: tree.label.clone(),
+                    kids: [kids_left, &[kid_middle], kids_right].concat(),
+                }
+            } else {
+                tree.clone().wrap_with_path(path)
+            }
+        }
+
+        go(self, index, path, 0);
+    }
+
+    pub fn wrap_with_path(self, path: Path) -> Tree {
+        let mut tree = self;
+        for tooth in path.into_iter().rev() {
+            tree = tree.wrap_with_tooth(tooth)
+        }
+        tree
+    }
+
+    pub fn wrap_with_tooth(self, tooth: Tooth) -> Tree {
+        Tree {
+            label: tooth.label,
+            kids: [tooth.kids_left, vec![self], tooth.kids_right].concat(),
+        }
+    }
 }
 
 pub fn big_tree(width: u32, height: u32) -> Tree {
@@ -129,7 +156,99 @@ pub type Path = Vec<Tooth>;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Tooth {
-    label: String,
-    kids_left: Vec<Tree>,
-    kids_right: Vec<Tree>,
+    pub label: String,
+    pub kids_left: Vec<Tree>,
+    pub kids_right: Vec<Tree>,
+}
+
+impl Tooth {
+    pub fn mk(label: &str, kids_left: &[Tree], kids_right: &[Tree]) -> Self {
+        Tooth {
+            label: label.to_string(),
+            kids_left: kids_left.to_vec(),
+            kids_right: kids_right.to_vec(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tree_wrap_with_tooth_test1() {
+        let tree = Tree::mk("B", &[]);
+
+        let tree_new = tree.wrap_with_tooth(Tooth {
+            label: "A".to_string(),
+            kids_left: vec![Tree {
+                label: "L".to_string(),
+                kids: vec![],
+            }],
+            kids_right: vec![Tree {
+                label: "R".to_string(),
+                kids: vec![],
+            }],
+        });
+
+        assert_eq!(
+            tree_new,
+            Tree::mk(
+                "A",
+                &[Tree::mk("L", &[]), Tree::mk("B", &[]), Tree::mk("R", &[])]
+            )
+        )
+    }
+
+    #[test]
+    fn tree_wrap_with_path_test1() {
+        let tree = Tree::mk("B", &[]);
+
+        let tree_new = tree.wrap_with_path(vec![Tooth::mk(
+            "A",
+            &[Tree::mk("L", &[])],
+            &[Tree::mk("R", &[])],
+        )]);
+
+        assert_eq!(
+            tree_new,
+            Tree::mk(
+                "A",
+                &[Tree::mk("L", &[]), Tree::mk("B", &[]), Tree::mk("R", &[])]
+            )
+        )
+    }
+
+    #[test]
+    fn tree_wrap_with_path_test2() {
+        let tree = Tree::mk("B", &[]);
+
+        let tree_new = tree.wrap_with_path(vec![
+            Tooth::mk("A1", &[Tree::mk("L", &[])], &[Tree::mk("R", &[])]),
+            Tooth::mk("A2", &[Tree::mk("L", &[])], &[Tree::mk("R", &[])]),
+            Tooth::mk("A3", &[Tree::mk("L", &[])], &[Tree::mk("R", &[])]),
+        ]);
+
+        assert_eq!(
+            tree_new,
+            Tree::mk(
+                "A1",
+                &[
+                    Tree::mk("L", &[]),
+                    Tree::mk(
+                        "A2",
+                        &[
+                            Tree::mk("L", &[]),
+                            Tree::mk(
+                                "A3",
+                                &[Tree::mk("L", &[]), Tree::mk("B", &[]), Tree::mk("R", &[])]
+                            ),
+                            Tree::mk("R", &[])
+                        ]
+                    ),
+                    Tree::mk("R", &[])
+                ]
+            )
+        )
+    }
 }

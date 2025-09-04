@@ -12,7 +12,7 @@ pub struct App {
 impl Default for App {
     fn default() -> Self {
         Self {
-            root: tree::big_tree(2, 3),
+            root: tree::big_tree(1, 20),
             focus: Index::default(),
         }
     }
@@ -93,6 +93,22 @@ impl eframe::App for App {
             self.focus.move_left_sibling();
         } else if ctx.input(|i| i.key_pressed(egui::Key::ArrowRight)) {
             self.focus.move_right_sibling();
+        } else if ctx.input(|i| i.key_pressed(egui::Key::Enter)) {
+            self.root.wrap_with_path_at_index(
+                &self.focus,
+                vec![tree::Tooth {
+                    label: "A".to_string(),
+                    kids_left: vec![tree::Tree {
+                        label: "B".to_string(),
+                        kids: vec![],
+                    }],
+                    kids_right: vec![tree::Tree {
+                        label: "C".to_string(),
+                        kids: vec![],
+                    }],
+                }],
+            );
+        } else {
         }
 
         // if move went out of bounds, then reset it
