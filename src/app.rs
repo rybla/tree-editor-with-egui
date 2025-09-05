@@ -39,37 +39,52 @@ impl App {
 
     fn render_tree(&mut self, ui: &mut Ui) {
         fn go(app: &mut App, ui: &mut Ui, outside_focus: bool, tree: &Tree, index: Index) {
-            Frame::new()
-                .inner_margin(12)
-                .outer_margin(12)
-                .corner_radius(12)
-                .shadow(egui::Shadow {
-                    offset: [4, 4],
-                    blur: 12,
-                    spread: 0,
-                    color: egui::Color32::from_black_alpha(180),
-                })
-                .fill(egui::Color32::BLUE)
-                .stroke(if outside_focus && index.len() == app.focus.len() {
-                    egui::Stroke::new(2.0, egui::Color32::RED)
-                } else {
-                    egui::Stroke::new(2.0, egui::Color32::BLACK)
-                })
-                .show(ui, |ui| {
-                    ui.label(egui::RichText::new(tree.label.clone()).color(egui::Color32::WHITE));
-                    for (i, kid) in tree.kids.iter().enumerate() {
-                        let mut index_kid = index.clone();
-                        index_kid.push(i);
+            ui.vertical(|ui| {
+                let frame = Frame::new()
+                    .inner_margin(12)
+                    .outer_margin(12)
+                    .corner_radius(12)
+                    .shadow(egui::Shadow {
+                        offset: [4, 4],
+                        blur: 12,
+                        spread: 0,
+                        color: egui::Color32::from_black_alpha(180),
+                    })
+                    .fill(egui::Color32::BLUE)
+                    .stroke(if outside_focus && index.len() == app.focus.len() {
+                        egui::Stroke::new(2.0, egui::Color32::RED)
+                    } else {
+                        egui::Stroke::new(2.0, egui::Color32::BLACK)
+                    });
 
-                        let outside_focus_kid = outside_focus
-                            && match app.focus.get(index_kid.len() - 1) {
-                                None => false,
-                                Some(j) => i == j,
-                            };
+                frame.show(ui, |ui| {
+                    // ui.label(egui::RichText::new(tree.label.clone()).color(egui::Color32::WHITE));
 
-                        go(app, ui, outside_focus_kid, kid, index_kid);
+                    let label = ui.button(
+                        egui::RichText::new(tree.label.clone()).color(egui::Color32::WHITE),
+                    );
+                    if label.clicked() {
+                        app.focus = index.clone();
                     }
+
+                    ui.horizontal(|ui| {
+                        for (i, kid) in tree.kids.iter().enumerate() {
+                            let mut index_kid = index.clone();
+                            index_kid.push(i);
+
+                            let outside_focus_kid = outside_focus
+                                && match app.focus.get(index_kid.len() - 1) {
+                                    None => false,
+                                    Some(j) => i == j,
+                                };
+
+                            go(app, ui, outside_focus_kid, kid, index_kid);
+                        }
+                    })
                 });
+
+                ui.set_max_size(ui.min_size());
+            });
         }
 
         go(self, ui, true, &self.root.clone(), Index::default());
@@ -138,9 +153,12 @@ impl eframe::App for App {
 
             ui.label(format!("focus: {:?}", self.focus));
 
-            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                self.render_tree(ui);
-            });
+            egui::ScrollArea::both()
+                .auto_shrink([false, true])
+                .show(ui, |ui| {
+                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+                    self.render_tree(ui);
+                })
         });
     }
 }
