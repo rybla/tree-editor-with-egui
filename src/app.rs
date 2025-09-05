@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use crate::tree::{self, Index, Tree};
-use egui::{Frame, Ui};
+use egui::{Frame, InnerResponse, Ui};
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -12,7 +14,7 @@ pub struct App {
 impl Default for App {
     fn default() -> Self {
         Self {
-            root: tree::big_tree(1, 20),
+            root: tree::big_tree(2, 8),
             focus: Index::default(),
         }
     }
@@ -37,8 +39,18 @@ impl App {
         }
     }
 
-    fn render_tree(&mut self, ui: &mut Ui) {
-        fn go(app: &mut App, ui: &mut Ui, outside_focus: bool, tree: &Tree, index: Index) {
+    fn render_tree(&mut self, ui: &mut Ui, ctx: &egui::Context) {
+        type IndexToResponse = HashMap<Index, egui::Response>;
+        let mut index_to_response: IndexToResponse = HashMap::new();
+
+        fn go(
+            app: &mut App,
+            ui: &mut Ui,
+            index_to_response: &mut IndexToResponse,
+            outside_focus: bool,
+            tree: &Tree,
+            index: Index,
+        ) {
             ui.vertical(|ui| {
                 let frame = Frame::new()
                     .inner_margin(12)
@@ -57,14 +69,11 @@ impl App {
                         egui::Stroke::new(2.0, egui::Color32::BLACK)
                     });
 
-                frame.show(ui, |ui| {
-                    // ui.label(egui::RichText::new(tree.label.clone()).color(egui::Color32::WHITE));
-
-                    let label = ui.button(
-                        egui::RichText::new(tree.label.clone()).color(egui::Color32::WHITE),
-                    );
+                let frame_response = frame.show(ui, |ui| {
+                    let label = ui.button(egui::RichText::new(tree.label.clone()));
                     if label.clicked() {
                         app.focus = index.clone();
+                        label.scroll_to_me(Some(egui::Align::TOP));
                     }
 
                     ui.horizontal(|ui| {
@@ -78,36 +87,47 @@ impl App {
                                     Some(j) => i == j,
                                 };
 
-                            go(app, ui, outside_focus_kid, kid, index_kid);
+                            go(
+                                app,
+                                ui,
+                                index_to_response,
+                                outside_focus_kid,
+                                kid,
+                                index_kid,
+                            );
                         }
                     })
                 });
+
+                index_to_response.insert(index.clone(), frame_response.response);
 
                 ui.set_max_size(ui.min_size());
             });
         }
 
-        go(self, ui, true, &self.root.clone(), Index::default());
-    }
-}
+        go(
+            self,
+            ui,
+            &mut index_to_response,
+            true,
+            &self.root.clone(),
+            Index::default(),
+        );
 
-impl eframe::App for App {
-    /// Called by the framework to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
-    }
-
-    /// Called each time the UI needs repainting, which may be many times per second.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let mut moved = false;
         let focus_old = self.focus.clone();
         if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
             self.focus.move_up();
+            moved = true;
         } else if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
             self.focus.move_down(0);
+            moved = true;
         } else if ctx.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
             self.focus.move_left_sibling();
+            moved = true;
         } else if ctx.input(|i| i.key_pressed(egui::Key::ArrowRight)) {
             self.focus.move_right_sibling();
+            moved = true;
         } else if ctx.input(|i| i.key_pressed(egui::Key::Enter)) {
             self.root.wrap_with_path_at_index(
                 &self.focus,
@@ -123,14 +143,30 @@ impl eframe::App for App {
                     }],
                 }],
             );
-        } else {
+            moved = true;
         }
 
         // if move went out of bounds, then reset it
         if !self.root.index_in_bounds(&self.focus) {
             self.focus = focus_old;
+            moved = false;
         }
 
+        if moved {
+            let response = index_to_response.get(&self.focus).unwrap();
+            response.scroll_to_me(Some(egui::Align::LEFT));
+        }
+    }
+}
+
+impl eframe::App for App {
+    /// Called by the framework to save state before shutdown.
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, eframe::APP_KEY, self);
+    }
+
+    /// Called each time the UI needs repainting, which may be many times per second.
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 // NOTE: no File->Quit on web pages!
@@ -155,9 +191,10 @@ impl eframe::App for App {
 
             egui::ScrollArea::both()
                 .auto_shrink([false, true])
+                .scroll_source(egui::containers::scroll_area::ScrollSource::MOUSE_WHEEL)
                 .show(ui, |ui| {
                     ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
-                    self.render_tree(ui);
+                    self.render_tree(ui, ctx);
                 })
         });
     }

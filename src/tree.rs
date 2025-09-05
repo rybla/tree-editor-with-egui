@@ -1,6 +1,6 @@
 pub type TreeStep = usize;
 
-#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub struct Index(pub Vec<TreeStep>);
 
 impl Index {
