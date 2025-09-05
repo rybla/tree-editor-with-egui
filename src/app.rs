@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use crate::tree::{self, Index, Tree};
-use egui::{Frame, InnerResponse, Ui};
+use egui::{Frame, Ui};
+use std::collections::HashMap;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -42,11 +41,13 @@ impl App {
     fn render_tree(&mut self, ui: &mut Ui, ctx: &egui::Context) {
         type IndexToResponse = HashMap<Index, egui::Response>;
         let mut index_to_response: IndexToResponse = HashMap::new();
+        let mut moved = false;
 
         fn go(
             app: &mut App,
             ui: &mut Ui,
             index_to_response: &mut IndexToResponse,
+            moved: &mut bool,
             outside_focus: bool,
             tree: &Tree,
             index: Index,
@@ -73,7 +74,7 @@ impl App {
                     let label = ui.button(egui::RichText::new(tree.label.clone()));
                     if label.clicked() {
                         app.focus = index.clone();
-                        label.scroll_to_me(Some(egui::Align::TOP));
+                        *moved = true;
                     }
 
                     ui.horizontal(|ui| {
@@ -91,6 +92,7 @@ impl App {
                                 app,
                                 ui,
                                 index_to_response,
+                                moved,
                                 outside_focus_kid,
                                 kid,
                                 index_kid,
@@ -109,12 +111,12 @@ impl App {
             self,
             ui,
             &mut index_to_response,
+            &mut moved,
             true,
             &self.root.clone(),
             Index::default(),
         );
 
-        let mut moved = false;
         let focus_old = self.focus.clone();
         if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
             self.focus.move_up();
