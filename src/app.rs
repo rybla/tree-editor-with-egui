@@ -13,7 +13,7 @@ pub struct App {
 impl Default for App {
     fn default() -> Self {
         Self {
-            root: tree::big_tree(2, 8),
+            root: tree::big_tree(5, 5),
             focus: Index::default(),
         }
     }
@@ -117,19 +117,24 @@ impl App {
             Index::default(),
         );
 
-        let focus_old = self.focus.clone();
         if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
-            self.focus.move_up();
+            self.focus.move_up_unsafe();
             moved = true;
         } else if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
-            self.focus.move_down(0);
+            self.focus.move_down_unsafe(0);
             moved = true;
         } else if ctx.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
-            self.focus.move_left_sibling();
-            moved = true;
+            let result = self.focus.move_prev(&self.root);
+            if let Err(msg) = &result {
+                println!("move prev error: {msg}")
+            }
+            moved = result.is_ok();
         } else if ctx.input(|i| i.key_pressed(egui::Key::ArrowRight)) {
-            self.focus.move_right_sibling();
-            moved = true;
+            let result = self.focus.move_next(&self.root);
+            if let Err(msg) = &result {
+                println!("move next error: {msg}")
+            }
+            moved = result.is_ok();
         } else if ctx.input(|i| i.key_pressed(egui::Key::Enter)) {
             self.root.wrap_with_path_at_index(
                 &self.focus,
@@ -146,12 +151,6 @@ impl App {
                 }],
             );
             moved = true;
-        }
-
-        // if move went out of bounds, then reset it
-        if !self.root.index_in_bounds(&self.focus) {
-            self.focus = focus_old;
-            moved = false;
         }
 
         if moved {
